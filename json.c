@@ -16,6 +16,31 @@ static JSON *JSON_New_Item(void) {
   return node;
 }
 
+// TODO
+static const char *pasre_string(JSON *item, const char *str) {
+  const char *ptr = str+1;
+  char *ptr2;
+  char *out;
+  int len = 0;
+  unsigned uc, uc2;
+  if (*str != '\"') {
+    ep = str;
+    return 0;
+  }
+
+  // "终止,或者'\0'终止
+  while (*ptr!='\"' && *ptr && ++len)
+    if (*ptr++ == '\\') //跳过转义符
+      ptr++;
+
+  out = (char*)JSON_malloc(len+1);
+  if (!out) return 0;
+  ptr = str + 1;
+  ptr2 = out;
+  
+}
+
+// TODO
 static const char *parse_value(JSON *item, const char *value) {
   if (!value) return 0;
   if (!strncmp(value, "null", 4)) {
@@ -47,6 +72,7 @@ void JSON_Delete(JSON *c) {
   }
 }
 
+// TODO
 JSON *JSON_ParseWithOpts(const char *value, char **return_parse_end, int require_null_terminated) {
   const char *end = 0;
   JSON *c = JSON_New_Item();
