@@ -31,10 +31,10 @@ typedef struct JSON {
 } JSON;
 
 
-  extern void JSON_Delete(JSON *c);
-  extern JSON *JSON_Parse(const char *value);
+extern void JSON_Delete(JSON *c);
+extern JSON *JSON_Parse(const char *value);
 
-  extern JSON *JSONParseWithOpts(const char *value, const char **return_parse_end, int require_null_terminated);
+extern JSON *JSON_ParseWithOpts(const char *value, const char **return_parse_end, int require_null_terminated);
   
 #ifdef __cplusplus
 }

@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+// 错误推出指针位置
 static const char *ep;
 
 static void *(*JSON_malloc)(size_t sz) = malloc; // 指针函数
@@ -16,6 +17,36 @@ static JSON *JSON_New_Item(void) {
   return node;
 }
 
+// 16进制转10进制
+static unsigned parse_hex4(const char *str) {
+  unsigned h = 0;
+  
+  if (*str >= '0' && *str <= '9') h += (*str) - '0';
+  else if (*str >= 'A' && *str <= 'F') h += 10 + (*str) - 'A';
+  else if (*str >= 'a' && *str <= 'f') h += 10 + (*str) - 'a';
+  else return 0;
+  h = h << 4; str++;
+  
+  if (*str >= '0' && *str <= '9') h += (*str) - '0';
+  else if (*str >= 'A' && *str <= 'F') h += 10 + (*str) - 'A';
+  else if (*str >= 'a' && *str <= 'f') h += 10 + (*str) - 'a';
+  else return 0;
+  h = h << 4; str++;
+
+  if (*str >= '0' && *str <= '9') h += (*str) - '0';
+  else if (*str >= 'A' && *str <= 'F') h += 10 + (*str) - 'A';
+  else if (*str >= 'a' && *str <= 'f') h += 10 + (*str) - 'a';
+  else return 0;
+  h = h << 4; str++;
+
+  if (*str >= '0' && *str <= '9') h += (*str) - '0';
+  else if (*str >= 'A' && *str <= 'F') h += 10 + (*str) - 'A';
+  else if (*str >= 'a' && *str <= 'f') h += 10 + (*str) - 'a';
+  else return 0;
+  
+  return h;
+}
+
 // TODO
 static const char *pasre_string(JSON *item, const char *str) {
   const char *ptr = str+1;
@@ -23,7 +54,7 @@ static const char *pasre_string(JSON *item, const char *str) {
   char *out;
   int len = 0;
   unsigned uc, uc2;
-  if (*str != '\"') {
+  if (*str != '\"') { // 不是字符串
     ep = str;
     return 0;
   }
@@ -37,7 +68,26 @@ static const char *pasre_string(JSON *item, const char *str) {
   if (!out) return 0;
   ptr = str + 1;
   ptr2 = out;
-  
+  while (*ptr != '\"' && *ptr) {
+    if (*ptr != '\\') *ptr2++ = *ptr++;
+    else {
+      ptr++;
+      switch (*ptr) {
+      case 'b': *ptr2++ = '\b'; break;
+      case 'f': *ptr2++ = '\f'; break;
+      case 'n': *ptr2++ = '\n'; break;
+      case 'r': *ptr2++ = '\r'; break;
+      case 't': *ptr2++ = '\t'; break;
+      case 'u': // utf-16 to utf-8
+        uc = parse_hex4(ptr + 1);
+        ptr += 4;
+        
+      }
+    }
+  }
+  *ptr2 = 0;
+  if (*ptr == '\"') ptr++;
+  return ptr;
 }
 
 // TODO
@@ -64,21 +114,42 @@ void JSON_Delete(JSON *c) {
   JSON *next;
   while (c) {
     next = c->next;
-    if (!(c->type&JSON_IsReference) && c->child) JSON_Delete(c->child);
-    if (!(c->type&JSON_IsReference) && c->valuestring) JSON_free(c->valuestring);
-    if (!(c->type&JSON_StringIsConst) && c->string) JSON_free(c->string);
+    if (!(c->type & JSON_IsReference) && c->child) JSON_Delete(c->child);
+    if (!(c->type & JSON_IsReference) && c->valuestring) JSON_free(c->valuestring);
+    if (!(c->type & JSON_StringIsConst) && c->string) JSON_free(c->string);
     JSON_free(c);
     c=next;
   }
 }
 
+// 过滤空格 \r \n
+static const char *skip(const char *in) {
+  while (in && *in && (unsigned char)*in <= 32)
+    in++;
+  return in;
+}
+
 // TODO
-JSON *JSON_ParseWithOpts(const char *value, char **return_parse_end, int require_null_terminated) {
+JSON *JSON_ParseWithOpts(const char *value, const char **return_parse_end, int require_null_terminated) {
   const char *end = 0;
   JSON *c = JSON_New_Item();
   ep = 0;
   if (!c) return 0;
-  
+  end = parse_value(c, skip(value));
+  if (!end) {
+    JSON_Delete(c);
+    return 0;
+  }
+  if (require_null_terminated) {
+    end = skip(end);
+    if (*end) {
+      JSON_Delete(c);
+      ep = end;
+      return 0;
+    }
+  }
+  if (return_parse_end)
+    *return_parse_end = end;
   return c;
 }
 
