@@ -6,6 +6,9 @@
 // 错误推出指针位置
 static const char *ep;
 
+// unicode to UTF-8
+static const unsigned char firstByteMark[7] = {0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC};
+
 static void *(*JSON_malloc)(size_t sz) = malloc; // 指针函数
 
 static void (*JSON_free)(void *ptr) = free;
@@ -47,8 +50,8 @@ static unsigned parse_hex4(const char *str) {
   return h;
 }
 
-// TODO
-static const char *pasre_string(JSON *item, const char *str) {
+// 解析字符串
+static const char *parse_string(JSON *item, const char *str) {
   const char *ptr = str+1;
   char *ptr2;
   char *out;
@@ -78,15 +81,41 @@ static const char *pasre_string(JSON *item, const char *str) {
       case 'n': *ptr2++ = '\n'; break;
       case 'r': *ptr2++ = '\r'; break;
       case 't': *ptr2++ = '\t'; break;
-      case 'u': // utf-16 to utf-8
+      case 'u': // UTF-16 to UTF-8
         uc = parse_hex4(ptr + 1);
         ptr += 4;
-        
+        // UTF-16 surrogate pair
+        if ((uc >= 0xDC00 && uc <= 0xDFFF) || uc == 0) break; //Low-surrogate, 不对应任何字符
+        if ((uc >= 0xD800 && uc <= 0xDBFF)) { //High-surrogate
+          if (ptr[1]!='\\' || ptr[2]!='u') break; // missing second-half of surrogate
+          uc2 = parse_hex4(ptr+3); ptr+=6;
+          if (uc2 < 0xDC00 || uc2 > 0xDFFF) break; // invalid second-half of surrogate
+          // UTF-16（4字节）的编码（二进制）就是：110110yyyyyyyyyy 110111xxxxxxxxxx
+          uc = 0x10000 + (((uc & 0x3FF) << 10) | (uc2 & 0x3FF));
+        }
+        len = 4; // UTF-8长度
+        if (uc < 0x80) len = 1;
+        else if (uc < 0x800) len = 2;
+        else if (uc < 0x100000) len = 3;
+        ptr2 += len;
+
+        switch (len) {
+        case 4: *--ptr2 = ((uc | 0x80) & 0xBF); uc >>= 6;
+        case 3: *--ptr2 = ((uc | 0x80) & 0xBF); uc >>= 6;
+        case 2: *--ptr2 = ((uc | 0x80) & 0xBF); uc >>= 6;
+        case 1: *--ptr2 = (uc | firstByteMark[len]);
+        }
+        ptr2+=len; break;
+      default:
+        *ptr2++ = *ptr; break;
       }
+      ptr++;
     }
   }
   *ptr2 = 0;
   if (*ptr == '\"') ptr++;
+  item->valuestring = out;
+  item->type = JSON_String;
   return ptr;
 }
 
@@ -105,6 +134,9 @@ static const char *parse_value(JSON *item, const char *value) {
     item->type = JSON_True;
     item->valueint = 1;
     return value + 4;
+  }
+  if (*value == '\"') {
+    return parse_string(item, value);
   }
   ep = value;
   return 0;
