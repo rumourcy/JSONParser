@@ -233,6 +233,9 @@ static const char *parse_object(JSON *item, const char *value) {
     new_item->prev = child;
     child = new_item;
     value = skip(parse_string(child, skip(value+1)));
+    if (!value) return 0;
+    child->string = child->valuestring;
+    child->valuestring = 0;
     if (*value != ':') {
       ep = value;
       return 0;
