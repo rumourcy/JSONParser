@@ -2,8 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
-// 错误推出指针位置
+// 因为数据格式错误，导致解析错误，退出指针所指的位置
 static const char *ep;
 
 // unicode to UTF-8
@@ -13,11 +14,26 @@ static void *(*JSON_malloc)(size_t sz) = malloc; // 指针函数
 
 static void (*JSON_free)(void *ptr) = free;
 
+/**
+ * 解析函数以及打印函数声明
+ * 返回值为指针指向的下个字符的位置
+ */
+static const char *parse_value(JSON *item, const char *value);
+static const char *parse_array(JSON *item, const char *value);
+static const char *parse_object(JSON *item, const char *value);
+
 static JSON *JSON_New_Item(void) {
   JSON *node = (JSON*)JSON_malloc(sizeof(JSON));
   if (node)
     memset(node, 0, sizeof(JSON));
   return node;
+}
+
+// 过滤空格 \r \n
+static const char *skip(const char *in) {
+  while (in && *in && (unsigned char)*in <= 32)
+    in++;
+  return in;
 }
 
 // 16进制转10进制
@@ -119,7 +135,119 @@ static const char *parse_string(JSON *item, const char *str) {
   return ptr;
 }
 
-// TODO
+// 解析数字
+static const char *parse_number(JSON *item, const char *num) {
+  double n = 0, sign = 1, scale = 0;
+  int subscale = 0, signsubscale = 1;
+
+  if (*num == '-') sign = -1, num++;
+  if (*num == '0') num++;
+  if (*num >= '1' && *num <= '9') {
+    do
+      n = (n * 10.0) + (*num++ - '0');
+    while (*num >= '0' && *num <= '9');
+  }
+  if (*num == '.' && num[1] >= '0' && num[1] <= '9') {
+    num++;
+    do
+      n = (n * 10.0) + (*num++ - '0'), scale--;
+    while (*num >= '0' && *num <= '9');
+  }
+  if (*num == 'e' || *num == 'E') {
+    num++;
+    if (*num == '+') num++;
+    else if (*num == '-')
+      signsubscale = -1, num++;
+    while (*num >= '0' && *num <= '9')
+      subscale = (subscale * 10) + (*num++ - '0');
+  }
+
+  n = sign*n*pow(10.0, (scale + subscale*signsubscale));
+  item->valuedouble = n;
+  item->valueint = (int)n;
+  item->type = JSON_Number;
+  return num;
+}
+
+// 解析JSON数组
+static const char *parse_array(JSON *item, const char *value) {
+  JSON *child;
+  if (*value != '[') {
+    ep = value;
+    return 0;
+  }
+
+  item->type = JSON_Array;
+  value = skip(value + 1);
+  if (*value == ']') return value + 1;
+
+  item->child = child = JSON_New_Item();
+  if (!item->child) return 0;
+  value = skip(parse_value(child, skip(value)));
+  if (!value)
+    return 0;
+
+  while (*value == ',') {
+    JSON *new_item;
+    if (!(new_item = JSON_New_Item())) return 0;
+    child->next = new_item;
+    new_item->prev = child;
+    child = new_item;
+    value = skip(parse_value(child, skip(value+1)));
+    if (!value) return 0;
+  }
+  
+  if (*value == ']') return value + 1;
+  ep = value;
+  return 0;
+}
+
+//解析JSON对象
+static const char *parse_object(JSON *item, const char *value) {
+  JSON *child;
+  if (*value != '{') {
+    ep = value;
+    return 0;
+  }
+
+  item->type = JSON_Object;
+  value = skip(value+1);
+  if (*value == '}') return value+1;
+  item->child = child = JSON_New_Item();
+  if (!item->child) return 0;
+  value = skip(parse_string(child, skip(value)));
+  if (!value) return 0;
+  child->string = child->valuestring;
+  child->valuestring = 0;
+  if (*value != ':') {
+    ep = value;
+    return 0;
+  }
+  value=skip(parse_value(child, skip(value+1)));
+  if (!value) return 0;
+
+  while (*value == ',') {
+    JSON *new_item;
+    if (!(new_item = JSON_New_Item())) return 0;
+    child->next = new_item;
+    new_item->prev = child;
+    child = new_item;
+    value = skip(parse_string(child, skip(value+1)));
+    if (*value != ':') {
+      ep = value;
+      return 0;
+    }
+    value = skip(parse_value(child, skip(value+1)));
+    if (!value) return 0;
+  }
+
+  if (*value == '}') return value+1;
+  
+  ep = value;
+  return 0;
+}
+
+// 解析JSON字符串
 static const char *parse_value(JSON *item, const char *value) {
   if (!value) return 0;
   if (!strncmp(value, "null", 4)) {
@@ -138,27 +266,17 @@ static const char *parse_value(JSON *item, const char *value) {
   if (*value == '\"') {
     return parse_string(item, value);
   }
+  if (*value == '-' || (*value >= '0' && *value <= '9')) {
+    return parse_number(item, value);
+  }
+  if (*value == '[') {
+    return parse_array(item, value);
+  }
+  if (*value == '{') {
+    return parse_object(item, value);
+  }
   ep = value;
   return 0;
-}
-
-void JSON_Delete(JSON *c) {
-  JSON *next;
-  while (c) {
-    next = c->next;
-    if (!(c->type & JSON_IsReference) && c->child) JSON_Delete(c->child);
-    if (!(c->type & JSON_IsReference) && c->valuestring) JSON_free(c->valuestring);
-    if (!(c->type & JSON_StringIsConst) && c->string) JSON_free(c->string);
-    JSON_free(c);
-    c=next;
-  }
-}
-
-// 过滤空格 \r \n
-static const char *skip(const char *in) {
-  while (in && *in && (unsigned char)*in <= 32)
-    in++;
-  return in;
 }
 
 // TODO
@@ -187,4 +305,16 @@ JSON *JSON_ParseWithOpts(const char *value, const char **return_parse_end, int r
 
 JSON *JSON_Parse(const char *value) {
   return JSON_ParseWithOpts(value, 0, 0);
+}
+
+void JSON_Delete(JSON *c) {
+  JSON *next;
+  while (c) {
+    next = c->next;
+    if (!(c->type & JSON_IsReference) && c->child) JSON_Delete(c->child);
+    if (!(c->type & JSON_IsReference) && c->valuestring) JSON_free(c->valuestring);
+    if (!(c->type & JSON_StringIsConst) && c->string) JSON_free(c->string);
+    JSON_free(c);
+    c=next;
+  }
 }
