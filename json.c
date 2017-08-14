@@ -9,6 +9,8 @@
 // 因为数据格式错误，导致解析错误，退出指针所指的位置
 static const char *ep;
 
+const char *JSON_GetErrorPtr(void) {return ep;}
+
 typedef struct {
   char *buffer;
   int length;
@@ -24,12 +26,24 @@ static void (*JSON_free)(void *ptr) = free;
 
 /**
  * 解析函数以及打印函数声明
- * 返回值为指针指向的下个字符的位置
+ * 解析函数返回值为指针指向的下个字符的位置
+ * 打印函数为格式化后的字符指针
  */
 static const char *parse_value(JSON *item, const char *value);
 static const char *parse_array(JSON *item, const char *value);
 static const char *parse_object(JSON *item, const char *value);
 static char *print_value(JSON *item,int depth,int fmt,printbuffer *p);
+static char *print_array(JSON *item,int depth,int fmt,printbuffer *p);
+static char *print_object(JSON *item,int depth,int fmt,printbuffer *p);
+
+static char *JSON_strdup(const char *str) {
+  size_t len;
+  char *copy;
+  len = strlen(str) + 1;
+  if (!(copy = (char*)JSON_malloc(len))) return 0;
+  memcpy(copy, str, len);
+  return copy;
+}
 
 static JSON *JSON_New_Item(void) {
   JSON *node = (JSON*)JSON_malloc(sizeof(JSON));
@@ -381,9 +395,10 @@ static char *print_array(JSON *item, int depth, int fmt, printbuffer *p) {
     child = item->child;
     while (child && !fail) {
       print_value(child, depth+1, fmt, p);
-      // 更新偏移位
+      // 更新偏移位, 未更新前offset位于上次添加的字符串的'\0',即结束处
       p->offset = update(p);
       if (child->next) {
+        // fmt代表','之后是否有' '
         len = fmt ? 2 : 1;
         ptr = ensure(p, len+1);
         if (!ptr)
@@ -525,11 +540,191 @@ static const char *parse_value(JSON *item, const char *value) {
   return 0;
 }
 
-static char *print_value(cJSON *item,int depth,int fmt,printbuffer *p) {
-  
+static char *print_object(JSON *item, int depth, int fmt, printbuffer *p) {
+  char **entries = 0, **names = 0;
+  char *out = 0, *ptr, *ret, *str;
+  int len = 7, i = 0, j;
+  JSON *child = item->child;
+  int numentries = 0, fail = 0;
+  size_t tmplen = 0;
+  while (child) numentries++, child = child->next;
+  if (!numentries) {
+    if (p) out = ensure(p, fmt ? depth+4 : 3);
+    else out = (char*)JSON_malloc(fmt ? depth+4 : 3);
+    if (!out) return 0;
+    ptr = out; *ptr++ = '{';
+    // 代表'{'之后是否有'\n'及'\t','\t'个数为depth
+    if (fmt) {
+      *ptr++ = '\n';
+      for (i = 0; i < depth - 1; i++)
+        *ptr++ = '\t';
+    }
+    *ptr++ = '}'; *ptr++ = 0;
+    return out;
+  }
+  if (p) {
+    i = p->offset;
+    len = fmt ? 2 : 1;
+    ptr = ensure(p, len+1);
+    if (!ptr) return 0;
+    *ptr++ = '{';
+    if (fmt) *ptr++ = '\n';
+    *ptr=0;
+    p->offset += len;
+    child = item->child;
+    depth++;
+    while (child) {
+      if (fmt) {
+        ptr = ensure(p, depth);
+        if (!ptr) return 0;
+        for (j = 0; j < depth; j++)
+          *ptr++ = '\t';
+        p->offset += depth;
+      }
+      print_string_ptr(child->string, p);
+      p->offset = update(p);
+
+      len = fmt ? 2 : 1;
+      ptr = ensure(p, len);
+      if (!ptr) return 0;
+      *ptr++ = ':';
+      if (fmt) *ptr++ = '\t';
+      p->offset+=len;
+
+      print_value(child, depth, fmt, p);
+      p->offset = update(p);
+
+      len = (fmt ? 1 : 0) + (child->next ? 1 : 0);
+      ptr = ensure(p, len+1);
+      if (!ptr) return 0;
+      if (child->next) *ptr++ = ',';
+      if (fmt) *ptr++ = '\n';
+      *ptr = 0;
+      p->offset+=len;
+      child=child->next;
+    }
+    ptr = ensure(p, fmt ? (depth+1) : 2);
+    if (fmt)
+      for (i = 0; i < depth - 1; i++) *ptr++ = '\t';
+    *ptr++ = '}'; *ptr = 0;
+    out = (p->buffer) + i;
+  } else {
+    entries = (char**)JSON_malloc(numentries*sizeof(char*));
+    if (!entries) return 0;
+    names = (char**)JSON_malloc(numentries*sizeof(char*));
+    if (!names) {
+      JSON_free(entries);
+      return 0;
+    }
+    memset(entries, 0, sizeof(char*)*numentries);
+    memset(entries, 0, sizeof(char*)*numentries);
+
+    child = item->child;
+    depth++;
+    if (fmt) len += depth;
+    while (child) {
+      names[i] = str = print_string_ptr(child->string, 0);
+      entries[i++] = ret = print_value(child, depth, fmt, 0);
+      if (str && ret)
+        len += strlen(ret) + strlen(str) + 2 + (fmt ? 2+depth : 0);
+      else
+        fail = 1;
+      child=child->next;
+    }
+
+    if (!fail) out = (char*)JSON_malloc(len);
+    if (!out) fail = 1;
+    if (fail) {
+      for (i = 0; i < numentries; i++) {
+        if (names[i])
+          JSON_free(names[i]);
+        if (entries[i])
+          JSON_free(entries[i]);
+        return 0;
+      }
+    }
+
+    *out = '{';
+    ptr = out + 1;
+    if (fmt) *ptr++ = '\n';
+    *ptr = 0;
+    for (i = 0; i < numentries ; i++) {
+      if (fmt) for (j = 0; j < depth; j++) *ptr++ = '\t';
+      tmplen = strlen(names[i]);
+      memcpy(ptr, names[i], tmplen);
+      ptr += tmplen;
+      *ptr++ = ':';
+      if (fmt) *ptr++ = '\t';
+      strcpy(ptr, entries[i]);
+      ptr += strlen(entries[i]);
+      if (i != numentries - 1) *ptr++ = ',';
+      if (fmt) *ptr++ = '\n';
+      *ptr = 0;
+      JSON_free(names[i]);
+      JSON_free(entries[i]);
+    }
+    JSON_free(names);
+    JSON_free(entries);
+    if (fmt)
+      for (i = 0; i < depth -1; i++)
+        *ptr++ = '\t';
+    *ptr++ = '}';
+    *ptr++ = 0;
+  }
+  return out;
 }
 
-// TODO
+static char *print_value(JSON *item,int depth,int fmt,printbuffer *p) {
+  char *out = 0;
+  if (!item) return 0;
+  if (p) {
+    switch ((item->type) & 255) {
+    case JSON_NULL: {
+      out = ensure(p, 5);
+      if (out) strcpy(out, "null");
+      break;
+    }
+    case JSON_False: {
+      out = ensure(p, 6);
+      if (out) strcpy(out, "false");
+      break;
+    }
+    case JSON_True: {
+      out = ensure(p, 5);
+      if (out) strcpy(out, "true");
+      break;
+    }
+    case JSON_Number: {
+      out = print_number(item, p);
+      break;
+    }
+    case JSON_String: {
+      out = print_string(item, p);
+      break;
+    }
+    case JSON_Array: {
+      out = print_array(item, depth, fmt, p);
+      break;
+    }
+    case JSON_Object: {
+      out = print_object(item, depth, fmt, p);
+      break;
+    }
+    }
+  } else {
+    switch ((item->type) & 255) {
+    case JSON_NULL: out = JSON_strdup("null"); break;
+    case JSON_False: out = JSON_strdup("false"); break;
+    case JSON_True: out = JSON_strdup("true"); break;
+    case JSON_Number: out = print_number(item, 0); break;
+    case JSON_String: out = print_string(item, 0); break;
+    case JSON_Array: out = print_array(item, depth, fmt, 0); break;
+    case JSON_Object: out = print_object(item, depth, fmt, 0); break;
+    }
+  }
+  return out;
+}
+
 JSON *JSON_ParseWithOpts(const char *value, const char **return_parse_end, int require_null_terminated) {
   const char *end = 0;
   JSON *c = JSON_New_Item();
@@ -555,6 +750,10 @@ JSON *JSON_ParseWithOpts(const char *value, const char **return_parse_end, int r
 
 JSON *JSON_Parse(const char *value) {
   return JSON_ParseWithOpts(value, 0, 0);
+}
+
+char *JSON_Print(JSON *item) {
+  return print_value(item, 0, 1 ,0);
 }
 
 void JSON_Delete(JSON *c) {

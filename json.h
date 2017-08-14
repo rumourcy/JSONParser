@@ -30,35 +30,15 @@ extern "C"
     char *string; // name
   } JSON;
 
+  extern const char *JSON_GetErrorPtr(void);
 
   extern void JSON_Delete(JSON *c);
   extern JSON *JSON_Parse(const char *value);
+  extern char *JSON_Print(JSON *item);
+  extern void JSON_Delete(JSON *c);
 
   extern JSON *JSON_ParseWithOpts(const char *value, const char **return_parse_end, int require_null_terminated);
 
-  // JSON创建函数
-  extern JSON *JSON_CreateNull(void);
-  extern JSON *JSON_CreateTrue(void);
-  extern JSON *JSON_CreateFalse(void);
-  extern JSON *JSON_CreateBool(int b);
-  extern JSON *JSON_CreateNumber(double num);
-  extern JSON *JSON_CreateString(const char *string);
-  extern JSON *JSON_CreateArray(void);
-  extern JSON *JSON_CreateObject(void);
-
-  extern JSON *JSON_CreateIntArray(const int *numbers, int count);
-  extern JSON *JSON_CreateFloatArray(const float *numbers, int count);
-  extern JSON *JSON_CreateDoubleArray(const double *numbers, int count);
-  extern JSON *JSON_CreateStringArray(const char **strings, int count);
-
-  // 添加JSON数据项
-  extern void JSON_AddItemToArray(JSON *array, JSON *item);
-  extern void JSON_AddItemToObject(JSON *object, const char *string, JSON *item);
-  extern void JSON_AddItemToObjectCS(JSON *object, const char *string, JSON *item);
-  extern void JSON_AddItemReferenceToArray(JSON *array, JSON *item);
-  extern void JSON_AddItemReferenceToObject(JSON *object, const char *string, JSON *item);
-  
-  
 #ifdef __cplusplus
 }
 #endif
