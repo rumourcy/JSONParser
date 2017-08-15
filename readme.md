@@ -26,12 +26,21 @@ static const char *parse_array(JSON *item, const char *value);
 static const char *parse_object(JSON *item, const char *value);
 ```
 - parse_string
+
 ![string](http://oanl5xf7d.bkt.clouddn.com//jsonparser/string.gif)
+
 - parse_number
+
 ![number](http://oanl5xf7d.bkt.clouddn.com//jsonparser/number.gif)
+
 - parse_value
+
 ![value](http://oanl5xf7d.bkt.clouddn.com//jsonparser/value.gif)
+
 - parse_array
+
 ![array](http://oanl5xf7d.bkt.clouddn.com//jsonparser/array.gif)
+
 - parse_object
+
 ![object](http://oanl5xf7d.bkt.clouddn.com//jsonparser/object.gif)
