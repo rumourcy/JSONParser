@@ -17,7 +17,7 @@ typedef struct {
   int offset;
 } printbuffer;
 
-// unicode to UTF-8
+// Unicode to UTF-8
 static const unsigned char firstByteMark[7] = {0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC};
 
 static void *(*JSON_malloc)(size_t sz) = malloc; // 指针函数
@@ -166,7 +166,7 @@ static const char *parse_string(JSON *item, const char *str) {
       case 'u': // UTF-16 to UTF-8
         uc = parse_hex4(ptr + 1);
         ptr += 4;
-        // UTF-16 surrogate pair
+        // UTF-16 surrogate pair UTF-16 to Unicode
         if ((uc >= 0xDC00 && uc <= 0xDFFF) || uc == 0) break; //Low-surrogate, 不对应任何字符
         if ((uc >= 0xD800 && uc <= 0xDBFF)) { //High-surrogate
           if (ptr[1]!='\\' || ptr[2]!='u') break; // missing second-half of surrogate
@@ -181,6 +181,7 @@ static const char *parse_string(JSON *item, const char *str) {
         else if (uc < 0x100000) len = 3;
         ptr2 += len;
 
+        // Unicode to UTF-8
         switch (len) {
         case 4: *--ptr2 = ((uc | 0x80) & 0xBF); uc >>= 6;
         case 3: *--ptr2 = ((uc | 0x80) & 0xBF); uc >>= 6;
