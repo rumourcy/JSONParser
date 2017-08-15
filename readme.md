@@ -44,3 +44,6 @@ static const char *parse_object(JSON *item, const char *value);
 - parse_object
 
 ![object](http://oanl5xf7d.bkt.clouddn.com//jsonparser/object.gif)
+
+#### 4. Reference
+[cJSON](https://sourceforge.net/projects/cjson/)
