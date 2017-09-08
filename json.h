@@ -32,7 +32,6 @@ extern "C"
 
   extern const char *JSON_GetErrorPtr(void);
 
-  extern void JSON_Delete(JSON *c);
   extern JSON *JSON_Parse(const char *value);
   extern char *JSON_Print(JSON *item);
   extern void JSON_Delete(JSON *c);
