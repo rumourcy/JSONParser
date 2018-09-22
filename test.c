@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include "json.h"
 
-/* Parse text to JSON, then render back to text, and print! */
+// 将JSON字符串解析成JSON对象，并打印JSON对象
 void doit(char *text)
 {
 	char *out;JSON *json;
