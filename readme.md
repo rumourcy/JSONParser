@@ -27,23 +27,23 @@ static const char *parse_object(JSON *item, const char *value);
 ```
 - parse_string
 
-![string](http://oanl5xf7d.bkt.clouddn.com//jsonparser/string.gif)
+![string](http://p2fe5tghw.bkt.clouddn.com//jsonparser/string.gif)
 
 - parse_number
 
-![number](http://oanl5xf7d.bkt.clouddn.com//jsonparser/number.gif)
+![number](http://p2fe5tghw.bkt.clouddn.com//jsonparser/number.gif)
 
 - parse_value
 
-![value](http://oanl5xf7d.bkt.clouddn.com//jsonparser/value.gif)
+![value](http://p2fe5tghw.bkt.clouddn.com//jsonparser/value.gif)
 
 - parse_array
 
-![array](http://oanl5xf7d.bkt.clouddn.com//jsonparser/array.gif)
+![array](http://p2fe5tghw.bkt.clouddn.com//jsonparser/array.gif)
 
 - parse_object
 
-![object](http://oanl5xf7d.bkt.clouddn.com//jsonparser/object.gif)
+![object](http://p2fe5tghw.bkt.clouddn.com//jsonparser/object.gif)
 
 #### 4. Reference
 [cJSON](https://sourceforge.net/projects/cjson/)
