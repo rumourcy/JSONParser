@@ -1,7 +1,7 @@
 ### JOSNParser
 ---
 #### 1. Introduction
-It's a json parser, for now, it can parse JSON string to JSON data format that defined in code, and it can format JSON data and print it.
+It's a simple JSON parser, it can parse JSON string to JSON data format that defined in code, and it can format JSON data and print it.
 #### 2. JSON Data Format
 ``` cpp
  typedef struct JSON {
