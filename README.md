@@ -27,23 +27,23 @@ static const char *parse_object(JSON *item, const char *value);
 ```
 - parse_string
 
-![string](http://p2fe5tghw.bkt.clouddn.com//jsonparser/string.gif)
+![string](https://github.com/trierbo/blog-source/raw/master/pics/jsonparser/string.gif)
 
 - parse_number
 
-![number](http://p2fe5tghw.bkt.clouddn.com//jsonparser/number.gif)
+![number](https://github.com/trierbo/blog-source/raw/master/pics/jsonparser/number.gif)
 
 - parse_value
 
-![value](http://p2fe5tghw.bkt.clouddn.com//jsonparser/value.gif)
+![value](https://github.com/trierbo/blog-source/raw/master/pics/jsonparser/value.gif)
 
 - parse_array
 
-![array](http://p2fe5tghw.bkt.clouddn.com//jsonparser/array.gif)
+![array](https://github.com/trierbo/blog-source/raw/master/pics/jsonparser/array.gif)
 
 - parse_object
 
-![object](http://p2fe5tghw.bkt.clouddn.com//jsonparser/object.gif)
+![object](https://github.com/trierbo/blog-source/raw/master/pics/jsonparser/object.gif)
 
 #### 4. Reference
 [cJSON](https://sourceforge.net/projects/cjson/)
